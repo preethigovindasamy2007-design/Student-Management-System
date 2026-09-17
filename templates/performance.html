@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Student Performance | Student Management System{% endblock %}
+{% block page_heading %}Student Performance Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Academic & Attendance Performance</h1>
+    <p>Holistic performance index calculated directly from SQLite marks and attendance records.</p>
+  </div>
+</div>
+
+<!-- Performance Overview Cards -->
+<div class="card">
+  <div class="card-header">
+    <h3>Student Performance Matrix</h3>
+    <span class="badge badge-info">{{ performance|length }} Evaluated Students</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Student Name</th>
+          <th>Department</th>
+          <th>Year & Section</th>
+          <th>Evaluated Subjects</th>
+          <th>Average Marks</th>
+          <th>Attendance %</th>
+          <th>Overall Grade</th>
+          <th>Performance Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in performance %}
+        <tr>
+          <td>
+            <strong>{{ p.name }}</strong>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ p.student_id }}</div>
+          </td>
+          <td>
+            <span class="badge badge-primary">{{ p.department }}</span>
+          </td>
+          <td>{{ p.year }} - Sec {{ p.section }}</td>
+          <td>{{ p.subjects_evaluated }} subjects</td>
+          <td>
+            <strong>{{ p.avg_marks }} / 100</strong>
+          </td>
+          <td>
+            <strong style="color: {% if p.attendance_pct >= 75 %}var(--success){% else %}var(--danger){% endif %};">
+              {{ p.attendance_pct }}%
+            </strong>
+          </td>
+          <td>
+            {% if p.grade == 'A+' %}
+              <span class="badge badge-success">{{ p.grade }}</span>
+            {% elif p.grade in ['A', 'B+'] %}
+              <span class="badge badge-primary">{{ p.grade }}</span>
+            {% elif p.grade in ['B', 'C'] %}
+              <span class="badge badge-warning">{{ p.grade }}</span>
+            {% else %}
+              <span class="badge badge-danger">{{ p.grade }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.status == 'Excellent' %}
+              <span class="badge badge-success">⭐ Excellent</span>
+            {% elif p.status == 'Good' %}
+              <span class="badge badge-primary">👍 Good</span>
+            {% elif p.status == 'Average' %}
+              <span class="badge badge-warning">⚡ Average</span>
+            {% elif p.status == 'Needs Improvement' %}
+              <span class="badge badge-danger">⚠️ Needs Improvement</span>
+            {% else %}
+              <span class="badge badge-info">{{ p.status }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">
+            No student performance records available.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

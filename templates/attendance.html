@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Tracking | Student Management System{% endblock %}
+{% block page_heading %}Student Attendance Tracking{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Attendance Management</h1>
+    <p>Monitor student attendance logs, absenteeism and low attendance warnings.</p>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start;">
+  <!-- Left: Attendance Table -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Attendance Roster</h3>
+      <span class="badge badge-info">{{ attendance_records|length }} Students</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Working Days</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Percentage</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in attendance_records %}
+          <tr {% if a.attendance_percentage < 75 %}style="background-color: #fffaf0;"{% endif %}>
+            <td>
+              <strong>{{ a.student_name }}</strong>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">{{ a.student_id }} • {{ a.department }}</div>
+            </td>
+            <td>{{ a.total_days }}</td>
+            <td><strong>{{ a.present_days }}</strong></td>
+            <td><span style="color: var(--danger);">{{ a.absent_days }}</span></td>
+            <td>
+              <strong style="color: {% if a.attendance_percentage >= 90 %}var(--success){% elif a.attendance_percentage >= 75 %}var(--primary){% else %}var(--danger){% endif %};">
+                {{ a.attendance_percentage }}%
+              </strong>
+            </td>
+            <td>
+              {% if a.attendance_percentage >= 90 %}
+                <span class="badge badge-success">Excellent ({{ a.attendance_percentage }}%)</span>
+              {% elif a.attendance_percentage >= 75 %}
+                <span class="badge badge-primary">Good ({{ a.attendance_percentage }}%)</span>
+              {% else %}
+                <span class="badge badge-danger">⚠️ Low Attendance</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+              No attendance records entered yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right: Add / Update Attendance Form -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Record / Update Attendance</h3>
+    </div>
+
+    <form method="POST" action="{{ url_for('add_attendance') }}" id="attendanceForm">
+      <!-- Select Student -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="student_id" class="form-label">Student <span class="required">*</span></label>
+        <select id="student_id" name="student_id" class="form-control" required>
+          <option value="">-- Choose Student --</option>
+          {% for s in students %}
+          <option value="{{ s.student_id }}">
+            {{ s.student_id }} - {{ s.name }} ({{ s.department }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Total Working Days -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="total_days" class="form-label">Total Working Days <span class="required">*</span></label>
+        <input
+          type="number"
+          id="total_days"
+          name="total_days"
+          class="form-control"
+          placeholder="e.g. 90"
+          min="1"
+          max="365"
+          value="90"
+          required
+        >
+      </div>
+
+      <!-- Present Days -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="present_days" class="form-label">Days Present <span class="required">*</span></label>
+        <input
+          type="number"
+          id="present_days"
+          name="present_days"
+          class="form-control"
+          placeholder="e.g. 84"
+          min="0"
+          max="365"
+          required
+        >
+      </div>
+
+      <!-- Live Calculation Box -->
+      <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 4px;">
+          <span>Days Absent:</span>
+          <strong id="previewAbsent" style="color: var(--text-main);">0 days</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 4px;">
+          <span>Attendance %:</span>
+          <strong id="previewPct" style="color: var(--primary);">0.0%</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
+          <span>Status:</span>
+          <span id="previewStatus" class="badge badge-info">-</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%;">
+        Save Attendance Record
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Live attendance calculation preview in frontend
+  const totalDaysInput = document.getElementById("total_days");
+  const presentDaysInput = document.getElementById("present_days");
+  const previewAbsent = document.getElementById("previewAbsent");
+  const previewPct = document.getElementById("previewPct");
+  const previewStatus = document.getElementById("previewStatus");
+
+  function updateAttendancePreview() {
+    const total = parseInt(totalDaysInput.value, 10) || 0;
+    const present = parseInt(presentDaysInput.value, 10) || 0;
+
+    if (total > 0 && present >= 0 && present <= total) {
+      const absent = total - present;
+      const pct = Math.round((present / total) * 1000) / 10;
+
+      previewAbsent.textContent = `${absent} days`;
+      previewPct.textContent = `${pct}%`;
+
+      if (pct >= 90) {
+        previewStatus.textContent = "Excellent";
+        previewStatus.className = "badge badge-success";
+      } else if (pct >= 75) {
+        previewStatus.textContent = "Good";
+        previewStatus.className = "badge badge-primary";
+      } else {
+        previewStatus.textContent = "⚠️ Low Attendance Warning";
+        previewStatus.className = "badge badge-danger";
+      }
+    } else {
+      previewAbsent.textContent = "-";
+      previewPct.textContent = "-";
+      previewStatus.textContent = "-";
+      previewStatus.className = "badge badge-info";
+    }
+  }
+
+  if (totalDaysInput && presentDaysInput) {
+    totalDaysInput.addEventListener("input", updateAttendancePreview);
+    presentDaysInput.addEventListener("input", updateAttendancePreview);
+  }
+</script>
+{% endblock %}

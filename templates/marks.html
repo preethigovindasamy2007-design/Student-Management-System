@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Marks Management | Student Management System{% endblock %}
+{% block page_heading %}Academic Marks Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Marks & Assessment</h1>
+    <p>Record, manage and evaluate internal, external, and total academic scores.</p>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start;">
+  <!-- Left: Marks Records Table -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Recorded Subject Marks</h3>
+      <span class="badge badge-info">{{ marks|length }} Records</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Subject</th>
+            <th>Internal (40)</th>
+            <th>External (60)</th>
+            <th>Total (100)</th>
+            <th>Grade</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in marks %}
+          <tr>
+            <td>
+              <strong>{{ m.student_name }}</strong>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">{{ m.student_id }} • {{ m.department }}</div>
+            </td>
+            <td>{{ m.subject }}</td>
+            <td>{{ m.internal_mark }}</td>
+            <td>{{ m.external_mark }}</td>
+            <td><strong>{{ m.total_mark }}</strong></td>
+            <td>
+              {% if m.grade == 'A+' %}
+                <span class="badge badge-success">{{ m.grade }}</span>
+              {% elif m.grade in ['A', 'B+'] %}
+                <span class="badge badge-primary">{{ m.grade }}</span>
+              {% elif m.grade in ['B', 'C'] %}
+                <span class="badge badge-warning">{{ m.grade }}</span>
+              {% else %}
+                <span class="badge badge-danger">{{ m.grade }} (Fail)</span>
+              {% endif %}
+            </td>
+            <td style="text-align: right;">
+              <a
+                href="{{ url_for('delete_mark', mark_id=m.mark_id) }}"
+                class="btn btn-danger btn-sm"
+                onclick="return confirm('Delete mark record for {{ m.student_name }} - {{ m.subject }}?');"
+              >
+                Delete
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+              No marks recorded yet. Use the form on the right to enter marks.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right: Add / Update Marks Form -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Enter Student Marks</h3>
+    </div>
+
+    <form method="POST" action="{{ url_for('add_marks') }}" id="marksForm">
+      <!-- Select Student -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="student_id" class="form-label">Student <span class="required">*</span></label>
+        <select id="student_id" name="student_id" class="form-control" required>
+          <option value="">-- Choose Student --</option>
+          {% for s in students %}
+          <option value="{{ s.student_id }}">
+            {{ s.student_id }} - {{ s.name }} ({{ s.department }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Subject -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="subject" class="form-label">Subject <span class="required">*</span></label>
+        <select id="subject" name="subject" class="form-control" required>
+          <option value="">-- Choose Subject --</option>
+          <option value="Database Management Systems">Database Management Systems</option>
+          <option value="Computer Networks">Computer Networks</option>
+          <option value="Operating Systems">Operating Systems</option>
+          <option value="Data Structures">Data Structures</option>
+          <option value="Computer Architecture">Computer Architecture</option>
+        </select>
+      </div>
+
+      <!-- Internal Mark -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="internal_mark" class="form-label">Internal Mark (Max 40) <span class="required">*</span></label>
+        <input
+          type="number"
+          id="internal_mark"
+          name="internal_mark"
+          class="form-control"
+          placeholder="0 - 40"
+          min="0"
+          max="40"
+          step="0.5"
+          required
+        >
+      </div>
+
+      <!-- External Mark -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="external_mark" class="form-label">External Mark (Max 60) <span class="required">*</span></label>
+        <input
+          type="number"
+          id="external_mark"
+          name="external_mark"
+          class="form-control"
+          placeholder="0 - 60"
+          min="0"
+          max="60"
+          step="0.5"
+          required
+        >
+      </div>
+
+      <!-- Live Calculation Preview -->
+      <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 4px;">
+          <span>Calculated Total:</span>
+          <strong id="previewTotal" style="color: var(--primary);">0.0 / 100</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
+          <span>Projected Grade:</span>
+          <strong id="previewGrade" style="color: var(--navy);">-</strong>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%;">
+        Save & Calculate Marks
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Live marks calculation preview in frontend
+  const internalInput = document.getElementById("internal_mark");
+  const externalInput = document.getElementById("external_mark");
+  const previewTotal = document.getElementById("previewTotal");
+  const previewGrade = document.getElementById("previewGrade");
+
+  function updatePreview() {
+    const internal = parseFloat(internalInput.value) || 0;
+    const external = parseFloat(externalInput.value) || 0;
+    const total = Math.min(100, Math.round((internal + external) * 10) / 10);
+
+    previewTotal.textContent = `${total} / 100`;
+
+    let grade = "F";
+    if (total >= 90) grade = "A+ (Outstanding)";
+    else if (total >= 80) grade = "A (Excellent)";
+    else if (total >= 70) grade = "B+ (Very Good)";
+    else if (total >= 60) grade = "B (Good)";
+    else if (total >= 50) grade = "C (Pass)";
+    else grade = "F (Re-appear)";
+
+    previewGrade.textContent = grade;
+  }
+
+  if (internalInput && externalInput) {
+    internalInput.addEventListener("input", updatePreview);
+    externalInput.addEventListener("input", updatePreview);
+  }
+</script>
+{% endblock %}
