@@ -1,5 +1,7 @@
 # Student Management System
 
+Deployment url : https://student-management-system-erg1.onrender.com
+
 A web-based college mini project developed using **Python Flask, SQLite, HTML5, CSS3, and Vanilla JavaScript**.
 
 The Student Management System provides a centralized platform to manage student information, departments, academic marks, attendance, performance, and institutional reports.
